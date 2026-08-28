@@ -7,7 +7,7 @@ const CATEGORIES = [
   { id: 'data', label: 'Data & Airtime' },
   { id: 'cds', label: 'CDS Dues' },
   { id: 'savings', label: 'Savings' },
-  {id: 'Miscellaneous', label: 'Miscellaneous'},
+  { id: 'Miscellaneous', label: 'Miscellaneous' },
 ];
 
 const MAX_ALLOWEE = 77000;
@@ -22,14 +22,6 @@ function naira(amount) {
   })}`;
 }
 
-function nairaAlert(amount) {
-  const sign = amount < 0 ? '-' : '';
-  return `${sign}NGN${Math.abs(amount).toLocaleString('en-NG', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
 function BudgetPlanner() {
   const [salary, setSalary] = useState(MAX_ALLOWEE);
   const [allocations, setAllocations] = useState(DEFAULT_ALLOCATIONS);
@@ -37,6 +29,21 @@ function BudgetPlanner() {
   function updateAllocation(id, value) {
     setAllocations(prev => ({ ...prev, [id]: value }));
   }
+
+  const rows = useMemo(() => {
+    let runningBalance = salary;
+    return CATEGORIES.map(cat => {
+      const pct = allocations[cat.id] || 0;
+      const amount = Math.round((salary * pct) / 100);
+      runningBalance -= amount;
+      return { ...cat, pct, amount, balanceAfter: runningBalance };
+    });
+  }, [salary, allocations]);
+
+  const totalPct = useMemo(
+    () => CATEGORIES.reduce((sum, c) => sum + (allocations[c.id] || 0), 0),
+    [allocations]
+  );
 
   return (
     <div className="wrap">
@@ -75,6 +82,31 @@ function BudgetPlanner() {
           value={salary}
           onChange={e => setSalary(Number(e.target.value))}
         />
+      </section>
+
+      <section className="ledger">
+        <div className="ledger-head">
+          <span>Ledger</span>
+          <span>{totalPct}% allocated</span>
+        </div>
+
+        {rows.map(row => (
+          <div className="ledger-row" key={row.id}>
+            <div className="ledger-row-top">
+              <span className="ledger-label">{row.label}</span>
+              <span className="ledger-leader"></span>
+              <span className="ledger-pct">{row.pct}%</span>
+              <span className="ledger-amount">{naira(row.amount)}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="60"
+              value={row.pct}
+              onChange={e => updateAllocation(row.id, Number(e.target.value))}
+            />
+          </div>
+        ))}
       </section>
     </div>
   );
