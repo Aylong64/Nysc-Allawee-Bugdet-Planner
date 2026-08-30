@@ -22,12 +22,24 @@ function naira(amount) {
   })}`;
 }
 
+function nairaAlert(amount) {
+  const sign = amount < 0 ? '-' : '';
+  return `${sign}NGN${Math.abs(amount).toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 function BudgetPlanner() {
   const [salary, setSalary] = useState(MAX_ALLOWEE);
   const [allocations, setAllocations] = useState(DEFAULT_ALLOCATIONS);
 
   function updateAllocation(id, value) {
     setAllocations(prev => ({ ...prev, [id]: value }));
+  }
+
+  function resetAllocations() {
+    setAllocations(DEFAULT_ALLOCATIONS);
   }
 
   const rows = useMemo(() => {
@@ -44,6 +56,9 @@ function BudgetPlanner() {
     () => CATEGORIES.reduce((sum, c) => sum + (allocations[c.id] || 0), 0),
     [allocations]
   );
+  const totalAmount = useMemo(() => rows.reduce((sum, r) => sum + r.amount, 0), [rows]);
+  const availableAmount = salary - totalAmount;
+  const isOverAllocated = availableAmount < 0;
 
   return (
     <div className="wrap">
@@ -87,27 +102,49 @@ function BudgetPlanner() {
       <section className="ledger">
         <div className="ledger-head">
           <span>Ledger</span>
-          <span>{totalPct}% allocated</span>
+          <div className="ledger-head-right">
+            <span className="ledger-total-pct">{totalPct}% allocated</span>
+            <button className="cta cta-ghost" onClick={resetAllocations}>Reset</button>
+          </div>
         </div>
 
-        {rows.map(row => (
-          <div className="ledger-row" key={row.id}>
-            <div className="ledger-row-top">
-              <span className="ledger-label">{row.label}</span>
-              <span className="ledger-leader"></span>
-              <span className="ledger-pct">{row.pct}%</span>
+        <div className="ledger-grid">
+          {rows.map(row => (
+            <div className="ledger-row" key={row.id}>
+              <div className="ledger-row-top">
+                <span className="ledger-label">{row.label}</span>
+                <span className="ledger-pct">{row.pct}%</span>
+              </div>
               <span className="ledger-amount">{naira(row.amount)}</span>
+              <input
+                type="range"
+                min="0"
+                max="60"
+                value={row.pct}
+                onChange={e => updateAllocation(row.id, Number(e.target.value))}
+              />
             </div>
-            <input
-              type="range"
-              min="0"
-              max="60"
-              value={row.pct}
-              onChange={e => updateAllocation(row.id, Number(e.target.value))}
-            />
-          </div>
-        ))}
+          ))}
+        </div>
       </section>
+
+      <section className={`ticker ${isOverAllocated ? 'ticker-declined' : ''}`}>
+        <p className="ticker-kicker">{isOverAllocated ? 'Transaction Declined' : 'Debit Alerts'}</p>
+        {rows.map(row => (
+          <p className="ticker-line" key={row.id}>
+            {nairaAlert(row.amount)} debited for {row.label}. Bal: {nairaAlert(row.balanceAfter)}
+          </p>
+        ))}
+        <p className={`ticker-line ticker-final ${isOverAllocated ? 'declined' : 'available'}`}>
+          {isOverAllocated
+            ? `Insufficient allowee \u2014 over by ${nairaAlert(Math.abs(availableAmount))}`
+            : `Available Balance: ${nairaAlert(availableAmount)}`}
+        </p>
+      </section>
+
+      <footer className="note">
+       Corper wee, you better budget your allawee
+      </footer>
     </div>
   );
 }
